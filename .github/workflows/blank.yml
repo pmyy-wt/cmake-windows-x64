@@ -67,7 +67,6 @@ jobs:
           $srcUrl = "https://github.com/Kitware/CMake/archive/refs/tags/$tag.zip"
           Invoke-WebRequest -Uri $srcUrl -OutFile cmake-src.zip
           Expand-Archive cmake-src.zip -DestinationPath .
-          Move-Item "CMake-$tag" cmake-source
         shell: pwsh
 
       - name: Apply patch
@@ -78,7 +77,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          ../cmake-source/configure.bat
+          cmake -S .. -B . -G"NMake Makefiles" --fresh
         shell: cmd
 
       - name: Build CMake
