@@ -101,7 +101,7 @@ jobs:
 
       # ========== 创建本仓库 Release 上传产物 ==========
       - name: Create GitHub Release
-        uses: softprops/action-ghrelease@v2
+        uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.LATEST_TAG }}
           name: CMake ${{ env.LATEST_TAG }} Windows-x64
