@@ -1,0 +1,128 @@
+name: Build Latest CMake Windows-x64
+
+on:
+  schedule:
+    # 每6小时执行一次轮询 UTC时间
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # 允许手动触发调试
+
+jobs:
+  check-and-build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+
+      - name: Get CMake latest release tag via GitHub API
+        id: get_cmake_version
+        run: |
+          $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/Kitware/CMake/releases/latest"
+          echo "LATEST_TAG=$($resp.tag_name)" >> $env:GITHUB_ENV
+          Write-Host "Latest CMake release: $($resp.tag_name)"
+        shell: pwsh
+
+      - name: Read last built version
+        id: read_last
+        run: |
+          if(Test-Path "cmake_last_version.txt"){
+            $last = Get-Content "cmake_last_version.txt" -Raw
+          }else{
+            $last = ""
+          }
+          echo "LAST_VERSION=$last" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Compare version, skip if no new release
+        id: check_update
+        run: |
+          $latest = $env:LATEST_TAG
+          $last = $env:LAST_VERSION
+          if ($latest -eq $last) {
+            Write-Host "No new CMake version, exit workflow"
+            echo "NEED_BUILD=false" >> $env:GITHUB_ENV
+          } else {
+            Write-Host "New version detected: $latest (old: $last)"
+            echo "NEED_BUILD=true" >> $env:GITHUB_ENV
+          }
+        shell: pwsh
+
+      - name: Early exit no update
+        if: env.NEED_BUILD == 'false'
+        run: exit 0
+        shell: pwsh
+
+      # ========== 开始编译 CMake Windows x64 ==========
+      - name: Install build dependencies
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Download CMake source code from official release
+        run: |
+          $tag = $env:LATEST_TAG
+          $srcUrl = "https://github.com/Kitware/CMake/archive/refs/tags/$tag.zip"
+          Invoke-WebRequest -Uri $srcUrl -OutFile cmake-src.zip
+          Expand-Archive cmake-src.zip -DestinationPath .
+          Move-Item "CMake-$tag" cmake-source
+        shell: pwsh
+
+      - name: Apply patch
+        run: git apply --verbose nmake-chinese-path.patch
+        shell: pwsh
+
+      - name: Configure build
+        run: |
+          mkdir build
+          cd build
+          ../cmake-source/configure.bat
+        shell: cmd
+
+      - name: Build CMake
+        run: |
+          cd build
+          nmake
+        shell: cmd
+
+      - name: Install to dist folder
+        run: |
+          cd build
+          nmake install DESTDIR=../dist
+        shell: cmd
+
+      - name: Zip compiled binary
+        run: |
+          $tag = $env:LATEST_TAG
+          Compress-Archive -Path dist/* -DestinationPath "cmake-windows-x64-$tag.zip"
+        shell: pwsh
+
+      # ========== 创建本仓库 Release 上传产物 ==========
+      - name: Create GitHub Release
+        uses: softprops/action-ghrelease@v2
+        with:
+          tag_name: ${{ env.LATEST_TAG }}
+          name: CMake ${{ env.LATEST_TAG }} Windows-x64
+          body: |
+            Auto-built from Kitware/CMake ${{ env.LATEST_TAG }}
+            Official upstream: https://github.com/Kitware/CMake/releases/tag/${{ env.LATEST_TAG }}
+          files: cmake-windows-x64-${{ env.LATEST_TAG }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 更新记录文件，标记已经构建该版本
+      - name: Update last version file & commit
+        if: !always()
+        run: |
+          $tag = $env:LATEST_TAG
+          Set-Content -Path cmake_last_version.txt -Value $tag
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add cmake_last_version.txt
+          git commit -m "Record built CMake version $tag"
+          git push
+        shell: pwsh
