@@ -64,10 +64,11 @@ jobs:
       - name: Download CMake source code from official release
         run: |
           $tag = $env:LATEST_TAG
+          $ver = $tag.Substring(1)
           $srcUrl = "https://github.com/Kitware/CMake/archive/refs/tags/$tag.zip"
           Invoke-WebRequest -Uri $srcUrl -OutFile cmake-src.zip
           Expand-Archive cmake-src.zip -DestinationPath .
-          Move-Item "CMake-$tag.Substring(1)" cmake-source
+          Move-Item "CMake-$ver" cmake-source
         shell: pwsh
 
       - name: Apply patch
