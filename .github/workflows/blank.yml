@@ -67,17 +67,20 @@ jobs:
           $srcUrl = "https://github.com/Kitware/CMake/archive/refs/tags/$tag.zip"
           Invoke-WebRequest -Uri $srcUrl -OutFile cmake-src.zip
           Expand-Archive cmake-src.zip -DestinationPath .
+          Move-Item "CMake-$tag.Substring(1)" cmake-source
         shell: pwsh
 
       - name: Apply patch
-        run: git apply --verbose nmake-chinese-path.patch
+        run: |
+          cd cmake-source
+          git apply --verbose ..\nmake-chinese-path.patch
         shell: pwsh
 
       - name: Configure build
         run: |
           mkdir build
           cd build
-          cmake -S .. -B . -G"NMake Makefiles" --fresh
+          cmake -S ..\cmake-source -B . -G"NMake Makefiles" --fresh
         shell: cmd
 
       - name: Build CMake
