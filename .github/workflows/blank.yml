@@ -74,7 +74,7 @@ jobs:
       - name: Apply patch
         run: |
           cd cmake-source
-          git apply --no-index --unsafe-paths --verbose ..\nmake-chinese-path.patch
+          git apply --no-index --unsafe-paths --verbose --directory=cmake-source ..\nmake-chinese-path.patch
         shell: pwsh
 
       - name: Configure build
