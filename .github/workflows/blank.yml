@@ -50,18 +50,15 @@ jobs:
           }
         shell: pwsh
 
-      - name: Early exit no update
-        if: env.NEED_BUILD == 'false'
-        run: exit 0
-        shell: pwsh
-
       # ========== 开始编译 CMake Windows x64 ==========
       - name: Install build dependencies
+        if: env.NEED_BUILD == 'true'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
       - name: Download CMake source code from official release
+        if: env.NEED_BUILD == 'true'
         run: |
           $tag = $env:LATEST_TAG
           $ver = $tag.Substring(1)
@@ -72,12 +69,14 @@ jobs:
         shell: pwsh
 
       - name: Apply patch
+        if: env.NEED_BUILD == 'true'
         run: |
           cd cmake-source
           git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path.patch
         shell: pwsh
 
       - name: Configure build
+        if: env.NEED_BUILD == 'true'
         run: |
           mkdir build
           cd build
@@ -85,18 +84,21 @@ jobs:
         shell: cmd
 
       - name: Build CMake
+        if: env.NEED_BUILD == 'true'
         run: |
           cd build
           nmake
         shell: cmd
 
       - name: Install to dist folder
+        if: env.NEED_BUILD == 'true'
         run: |
           cd build
           nmake install DESTDIR=../dist
         shell: cmd
 
       - name: Zip compiled binary
+        if: env.NEED_BUILD == 'true'
         run: |
           $tag = $env:LATEST_TAG
           Compress-Archive -Path dist/* -DestinationPath "cmake-windows-x64-$tag.zip"
@@ -104,6 +106,7 @@ jobs:
 
       # ========== 创建本仓库 Release 上传产物 ==========
       - name: Create GitHub Release
+        if: env.NEED_BUILD == 'true'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.LATEST_TAG }}
@@ -119,6 +122,7 @@ jobs:
 
       # 更新记录文件，标记已经构建该版本
       - name: Update last version file & commit
+        if: env.NEED_BUILD == 'true'
         run: |
           $tag = $env:LATEST_TAG
           Set-Content -Path cmake_last_version.txt -Value $tag
