@@ -1,0 +1,22 @@
+diff --git a/Source/cmcmd.cxx b/Source/cmcmd.cxx
+index 6610da07..8e900652 100644
+--- a/Source/cmcmd.cxx
++++ b/Source/cmcmd.cxx
+@@ -2966,9 +2966,17 @@ int cmcmd::VisualStudioLink(std::vector<std::string> const& args, int type,
+     if (i[0] == '@' &&
+         !(cmHasLiteralPrefix(i, "@CMakeFiles") ||
+           cmHasLiteralPrefix(i, "@.o/") || cmHasLiteralPrefix(i, "@.o\\"))) {
++      // NMAKE writes the inline file data in the ANSI code page, so decode
++      // the temporary response file bytes from the ANSI code page to UTF-8
++      // before parsing.
+       cmsys::ifstream fin(i.substr(1).c_str());
++      cmProcessOutput decode(cmProcessOutput::ANSI);
+       std::string line;
+       while (cmSystemTools::GetLineFromStream(fin, line)) {
++        std::string decoded;
++        if (decode.DecodeText(line, decoded)) {
++          line = decoded;
++        }
+         cmSystemTools::ParseWindowsCommandLine(line.c_str(), expandedArgs);
+       }
+     } else {
