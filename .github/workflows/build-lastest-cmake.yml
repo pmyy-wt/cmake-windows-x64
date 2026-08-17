@@ -80,7 +80,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -S ..\cmake-source -B . -G"NMake Makefiles" --fresh
+          cmake -S ..\cmake-source -B . -G"NMake Makefiles" --fresh -DCMAKE_BUILD_TYPE=MinSizeRel
         shell: cmd
 
       - name: Build CMake
