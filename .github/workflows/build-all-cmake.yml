@@ -74,7 +74,7 @@ jobs:
     needs: get_version_list
     runs-on: windows-latest
     # 没有待构建版本则跳过job
-    if: ${{ fromJson(needs.get_version_list.outputs.version_list).length > 0 }}
+    #if: ${{ fromJson(needs.get_version_list.outputs.version_list).length > 0 }}
     strategy:
       fail-fast: false # 一个版本编译失败，不中断其他版本
       matrix:
