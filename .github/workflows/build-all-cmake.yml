@@ -128,8 +128,7 @@ jobs:
         shell: cmd
         run: |
           cd build
-          $env:DESTDIR="..\dist"
-          ninja install
+          cmake.exe --install . --prefix ../dist
 
       - name: Package zip artifact
         shell: pwsh
