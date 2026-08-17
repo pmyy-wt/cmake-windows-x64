@@ -19,7 +19,7 @@ jobs:
         id: fetch_tags
         run: |
           # 获取所有release tag，过滤 v3.20.0 及以上，过滤rc/beta预发布版本
-          resp=$(curl -s "https://api.github.com/repos/Kitware/CMake/releases?per_page=100")
+          resp=$(curl -s "https://api.github.com/repos/Kitware/CMake/releases?per_page=200")
           # 使用jq过滤正式版本，排除rc、beta等预发布
           tags=$(echo "$resp" | jq -r '.[] | select(.prerelease==false) | .tag_name' | grep -E '^v(3\.(2[0-9]|[3-9][0-9])\.[0-9]+|4\.[0-9]+\.[0-9]+)$' | sort -V)
           # tags=$(echo -e "v3.20.0\nv3.21.0\nv4.4.0\n")
@@ -108,7 +108,7 @@ jobs:
       - name: Apply patch
         run: |
           cd cmake-source
-          git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path-v3.patch ||git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path.patch
+          git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path-v3.patch ||git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path-v4.patch
         shell: pwsh
 
       - name: Configure
@@ -155,9 +155,9 @@ jobs:
         run: |
           git pull
           $tag = "${{ matrix.cmake_tag }}"
-          Add-Content -Path built_versions.txt -Value "$tag"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          Add-Content -Path built_versions.txt -Value "$tag"
           git add built_versions.txt
           git commit -m "Mark built: $tag"
           git push
