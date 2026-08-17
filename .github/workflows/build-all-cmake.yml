@@ -128,7 +128,8 @@ jobs:
         shell: cmd
         run: |
           cd build
-          ninja install DESTDIR=../dist
+          $env:DESTDIR="..\dist"
+          ninja install
 
       - name: Package zip artifact
         shell: pwsh
