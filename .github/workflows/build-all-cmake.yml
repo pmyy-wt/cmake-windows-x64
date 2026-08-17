@@ -21,7 +21,7 @@ jobs:
           # 获取所有release tag，过滤 v3.20.0 及以上，过滤rc/beta预发布版本
           resp=$(curl -s "https://api.github.com/repos/Kitware/CMake/releases?per_page=100")
           # 使用jq过滤正式版本，排除rc、beta等预发布
-          tags=$(echo "$resp" | jq -r '.[] | select(.prerelease==false) | .tag_name' | grep -E '^v3\.(2[0-9]|[3-9][0-9])\.[0-9]+$' | sort -V |tail -4)
+          tags=$(echo "$resp" | jq -r '.[] | select(.prerelease==false) | .tag_name' | grep -E '^v(3\.(2[0-9]|[3-9][0-9])\.[0-9]+|4\.[0-9]+\.[0-9]+)$' | sort -V)
           # tags=$(echo -e "v3.20.0\nv3.21.0\nv4.4.0\n")
           echo "TAGS<<EOF" >> $GITHUB_ENV
           echo "$tags" >> $GITHUB_ENV
