@@ -1,0 +1,19 @@
+diff --git a/Source/cmcmd.cxx b/Source/cmcmd.cxx
+index 6610da07..8e900652 100644
+--- a/Source/cmcmd.cxx
++++ b/Source/cmcmd.cxx
+@@ -2186,8 +2186,13 @@
+     // check for nmake temporary files
+     if (i[0] == '@' && !cmHasLiteralPrefix(i, "@CMakeFiles")) {
+       cmsys::ifstream fin(i.substr(1).c_str());
++      cmProcessOutput decode(cmProcessOutput::ANSI);
+       std::string line;
+       while (cmSystemTools::GetLineFromStream(fin, line)) {
++        std::string decoded;
++        if (decode.DecodeText(line, decoded)) {
++          line = decoded;
++        }
+         cmSystemTools::ParseWindowsCommandLine(line.c_str(), expandedArgs);
+       }
+     } else {
+
