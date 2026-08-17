@@ -1,0 +1,160 @@
+name: Build CMake v3.20.0 ~ Latest Windows‑x64
+
+on:
+  #schedule:
+    # 每 8 小时轮询检查新版本 UTC
+  #  - cron: '0 */8 * * *'
+  workflow_dispatch: # 手动触发，用于首次批量构建历史版本
+
+jobs:
+  get_version_list:
+    runs-on: ubuntu-latest
+    outputs:
+      version_list: ${{ steps.filter_versions.outputs.versions }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch all CMake release tags >= v3.20.0
+        id: fetch_tags
+        run: |
+          # 获取所有release tag，过滤 v3.20.0 及以上，过滤rc/beta预发布版本
+          resp=$(curl -s "https://api.github.com/repos/Kitware/CMake/releases?per_page=100")
+          # 使用jq过滤正式版本，排除rc、beta等预发布
+          # tags=$(echo "$resp" | jq -r '.[] | select(.prerelease==false) | .tag_name' | grep -E '^v3\.(2[0-9]|[3-9][0-9])\.[0-9]+$' | sort -V)
+          tags=$(echo -e "3.20.0\n3.21.0\n4.4.0\n")
+          echo "TAGS<<EOF" >> $GITHUB_ENV
+          echo "$tags" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Read already built versions
+        id: read_built
+        run: |
+          if [ -f built_versions.txt ]; then
+            BUILT=$(cat built_versions.txt)
+          else
+            BUILT=""
+          fi
+          echo "BUILT_VERSIONS<<EOF" >> $GITHUB_ENV
+          echo "$BUILT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Filter out already‑built versions
+        id: filter_versions
+        run: |
+          all_tags=($(echo "$TAGS"))
+          built_arr=($(echo "$BUILT_VERSIONS"))
+          build_list=()
+          for t in "${all_tags[@]}"; do
+            skip=0
+            for b in "${built_arr[@]}"; do
+              if [[ "$t" == "$b" ]]; then
+                skip=1
+                break
+              fi
+            done
+            if [[ $skip -eq 0 ]]; then
+              build_list+=("$t")
+            fi
+          done
+          # 输出json格式给matrix；无版本时输出空数组
+          if [[ ${#build_list[@]} -eq 0 ]]; then
+            echo "versions=[]" >> $GITHUB_OUTPUT
+          else
+            json=$(printf '%s\n' "${build_list[@]}" | jq -R . | jq -s .)
+            echo "versions=$json" >> $GITHUB_OUTPUT
+          fi
+        env:
+          TAGS: ${{ env.TAGS }}
+          BUILT_VERSIONS: ${{ env.BUILT_VERSIONS }}
+
+  build_cmake_matrix:
+    needs: get_version_list
+    runs-on: windows-latest
+    # 没有待构建版本则跳过job
+    if: ${{ fromJson(needs.get_version_list.outputs.version_list).length > 0 }}
+    strategy:
+      fail-fast: false # 一个版本编译失败，不中断其他版本
+      matrix:
+        cmake_tag: ${{ fromJson(needs.get_version_list.outputs.version_list) }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load MSVC x64 build environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+  
+      - name: Download CMake source ${{ matrix.cmake_tag }}
+        shell: pwsh
+        run: |
+          $tag = "${{ matrix.cmake_tag }}"
+          $ver = $tag.Substring(1)
+          $url = "https://github.com/Kitware/CMake/archive/refs/tags/$tag.zip"
+          Invoke-WebRequest -Uri $url -OutFile cmake-src.zip
+          Expand-Archive cmake-src.zip -DestinationPath .
+          Move-Item "CMake-$ver" cmake-source
+
+      - name: Apply patch
+        run: |
+          cd cmake-source
+          git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path.patch
+        shell: pwsh
+
+      - name: Configure
+        shell: cmd
+        run: |
+          mkdir build
+          cd build
+          cmake -S ..\cmake-source -B . -G"Ninja" --fresh
+
+      - name: Compile with ninja
+        shell: cmd
+        run: |
+          cd build
+          ninja
+
+      - name: Install to dist directory
+        shell: cmd
+        run: |
+          cd build
+          nmake install DESTDIR=../dist
+
+      - name: Package zip artifact
+        shell: pwsh
+        run: |
+          $tag = "${{ matrix.cmake_tag }}"
+          Compress-Archive -Path dist\* -DestinationPath "cmake-windows-x64-$tag.zip"
+
+      - name: Create Release for ${{ matrix.cmake_tag }}
+        uses: softprops/action-ghrelease@v2
+        with:
+          tag_name: ${{ matrix.cmake_tag }}
+          name: CMake ${{ matrix.cmake_tag }} Windows‑x64
+          body: |
+            Automatically built from upstream Kitware/CMake ${{ matrix.cmake_tag }}
+            Upstream release: https://github.com/Kitware/CMake/releases/tag/${{ matrix.cmake_tag }}
+          files: cmake-windows-x64-${{ matrix.cmake_tag }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record this version as built
+        shell: pwsh
+        run: |
+          $tag = "${{ matrix.cmake_tag }}"
+          Add-Content -Path built_versions.txt -Value "$tag"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add built_versions.txt
+          git commit -m "Mark built: $tag"
+          git push
