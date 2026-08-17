@@ -153,6 +153,7 @@ jobs:
       - name: Record this version as built
         shell: pwsh
         run: |
+          git pull
           $tag = "${{ matrix.cmake_tag }}"
           Add-Content -Path built_versions.txt -Value "$tag"
           git config --global user.name "github-actions[bot]"
