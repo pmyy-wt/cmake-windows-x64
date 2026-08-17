@@ -62,7 +62,9 @@ jobs:
             echo "versions=[]" >> $GITHUB_OUTPUT
           else
             json=$(printf '%s\n' "${build_list[@]}" | jq -R . | jq -s .)
-            echo "versions=$json" >> $GITHUB_OUTPUT
+            echo "versions<<EOF" >> $GITHUB_OUTPUT
+            echo "$json" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
           fi
         env:
           TAGS: ${{ env.TAGS }}
