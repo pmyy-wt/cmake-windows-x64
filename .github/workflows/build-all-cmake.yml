@@ -128,7 +128,7 @@ jobs:
         shell: cmd
         run: |
           cd build
-          nmake install DESTDIR=../dist
+          ninja install DESTDIR=../dist
 
       - name: Package zip artifact
         shell: pwsh
