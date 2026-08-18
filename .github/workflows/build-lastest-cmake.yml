@@ -5,28 +5,38 @@ on:
     # 每6小时执行一次轮询 UTC时间
     - cron: '0 */6 * * *'
   workflow_dispatch: # 允许手动触发调试
-
+    inputs:
+      cmake_tag:
+        description: 'CMake tag，例如 v3.20.0 / v3.30.2'
+        required: false
+        type: string
+        default: 'latest'
+        
 jobs:
   check-and-build:
     runs-on: windows-latest
     permissions:
       contents: write
       pull-requests: write
-
+    env:
+      CMAKE_TAG: ${{ github.event.inputs.cmake_tag }}
+      
     steps:
       - name: Checkout current repo
         uses: actions/checkout@v4
 
       - name: Get CMake latest release tag via GitHub API
         id: get_cmake_version
+        if: ${{github.event.inputs.cmake_tag == 'latest' }}
         run: |
           $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/Kitware/CMake/releases/latest"
           echo "LATEST_TAG=$($resp.tag_name)" >> $env:GITHUB_ENV
           Write-Host "Latest CMake release: $($resp.tag_name)"
         shell: pwsh
-
+        
       - name: Read last built version
         id: read_last
+        if: ${{github.event.inputs.cmake_tag == 'latest' }}
         run: |
           if(Test-Path "cmake_last_version.txt"){
             $last = Get-Content "cmake_last_version.txt" -Raw
@@ -36,6 +46,15 @@ jobs:
           echo "LAST_VERSION=$last" >> $env:GITHUB_ENV
         shell: pwsh
 
+      - name: Get CMake latest release tag via GitHub API
+        id: set_cmake_version
+        if: ${{github.event.inputs.cmake_tag != 'latest' }}
+        run: |
+          echo "LATEST_TAG=$env:CMAKE_TAG" >> $env:GITHUB_ENV
+          echo "LAST_VERSION=" >> $env:GITHUB_ENV
+          Write-Host "Set CMake release: $env:CMAKE_TAG"
+        shell: pwsh
+        
       - name: Compare version, skip if no new release
         id: check_update
         run: |
