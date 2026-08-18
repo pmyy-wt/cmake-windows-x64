@@ -91,7 +91,7 @@ jobs:
         if: env.NEED_BUILD == 'true'
         run: |
           cd cmake-source
-          git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path.patch
+          git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path-v3.patch ||git apply --no-index --unsafe-paths --ignore-space-change --ignore-whitespace --verbose --directory=cmake-source ..\nmake-non-ascii-path-v4.patch
         shell: pwsh
 
       - name: Configure build
