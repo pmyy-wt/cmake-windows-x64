@@ -19,7 +19,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      CMAKE_TAG: ${{ github.event.inputs.cmake_tag }}
+      CMAKE_TAG: ${{ github.event.inputs.cmake_tag || 'latest' }}
       
     steps:
       - name: Checkout current repo
