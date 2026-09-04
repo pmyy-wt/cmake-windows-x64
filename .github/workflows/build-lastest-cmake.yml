@@ -27,7 +27,7 @@ jobs:
 
       - name: Get CMake latest release tag via GitHub API
         id: get_cmake_version
-        if: ${{github.event.inputs.cmake_tag == 'latest' }}
+        if: ${{ env.CMAKE_TAG == 'latest' }}
         run: |
           $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/Kitware/CMake/releases/latest"
           echo "LATEST_TAG=$($resp.tag_name)" >> $env:GITHUB_ENV
@@ -36,7 +36,7 @@ jobs:
         
       - name: Read last built version
         id: read_last
-        if: ${{github.event.inputs.cmake_tag == 'latest' }}
+        if: ${{ env.CMAKE_TAG == 'latest' }}
         run: |
           if(Test-Path "cmake_last_version.txt"){
             $last = Get-Content "cmake_last_version.txt" -Raw
@@ -48,7 +48,7 @@ jobs:
 
       - name: Get CMake latest release tag via GitHub API
         id: set_cmake_version
-        if: ${{github.event.inputs.cmake_tag != 'latest' }}
+        if: ${{ env.CMAKE_TAG != 'latest' }}
         run: |
           echo "LATEST_TAG=$env:CMAKE_TAG" >> $env:GITHUB_ENV
           echo "LAST_VERSION=" >> $env:GITHUB_ENV
